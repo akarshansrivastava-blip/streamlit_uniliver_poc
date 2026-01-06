@@ -37,7 +37,7 @@ st.markdown("""
 @st.cache_data
 def load_data():
     try:
-        df = pd.read_csv('dashboard_aata/rightsizing_results_dataflow.csv')
+        df = pd.read_csv('dashboard_data/rightsizing_results_dataflow.csv')
 
         # Convert created_at to datetime if it exists
         if 'created_at' in df.columns:
