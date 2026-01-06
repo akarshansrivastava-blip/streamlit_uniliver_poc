@@ -38,7 +38,7 @@ st.markdown("""
 @st.cache_data
 def load_data():
     try:
-        df = pd.read_csv('dashboard_Data/rightsizing_results_dataflow.csv')
+        df = pd.read_csv('dashboard_aata/rightsizing_results_dataflow.csv')
 
         # Convert created_at to datetime if it exists
         if 'created_at' in df.columns:
@@ -52,7 +52,7 @@ def load_data():
 @st.cache_data
 def load_cloudsql_data():
     try:
-        df = pd.read_csv('dashboard_Data/rightsizing_results_cloudsql.csv')
+        df = pd.read_csv('dashboard_data/rightsizing_results_cloudsql.csv')
 
         # Convert created_at to datetime if it exists
         if 'created_at' in df.columns:
@@ -66,7 +66,7 @@ def load_cloudsql_data():
 @st.cache_data
 def load_kubernetes_data():
     try:
-        df = pd.read_csv('dashboard_Data/rightsizing_results.csv')
+        df = pd.read_csv('dashboard_data/rightsizing_results.csv')
         # Convert created_at to datetime if it exists
         if 'created_at' in df.columns:
             df['created_at'] = pd.to_datetime(df['created_at'], errors='coerce')
@@ -79,7 +79,7 @@ def load_kubernetes_data():
 @st.cache_data
 def load_overview_data():
     try:
-        df = pd.read_csv('dashboard_Data/overview.csv')
+        df = pd.read_csv('dashboard_data/overview.csv')
         return df
     except Exception as e:
         st.error(f"Error loading Overview data: {str(e)}")
