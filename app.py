@@ -336,26 +336,33 @@ if active_tab == 'DataFlow':
             )
         
         st.markdown("---")
-        
+
         # Charts Section
         st.subheader("📈 Cost Analysis & Visualizations")
         
-        # Row 1: Cost Comparison Charts
-        col_chart1, col_chart2 = st.columns(2)
+        # ===============================
+        # Row 1: Cost Comparison (ONLY ONE CHART)
+        # ===============================
+        col_chart1 = st.columns(1)[0]
         
         with col_chart1:
             st.markdown("### Current vs Target Cost Comparison")
+        
             cost_comparison = pd.DataFrame({
                 'Cost Type': ['Current Cost', 'Target Cost', 'Savings'],
                 'Amount': [total_current_cost, total_target_cost, total_savings],
-                'Percentage': ['100%', f'{100-cost_reduction_percentage:.1f}%', f'{savings_percentage:.1f}%']
+                'Percentage': [
+                    '100%',
+                    f'{100 - cost_reduction_percentage:.1f}%',
+                    f'{savings_percentage:.1f}%'
+                ]
             })
-            
-            # Create custom text with both amount and percentage
+        
             cost_comparison['Display Text'] = cost_comparison.apply(
-                lambda row: f"${row['Amount']:,.0f}<br>({row['Percentage']})", axis=1
+                lambda row: f"${row['Amount']:,.0f}<br>({row['Percentage']})",
+                axis=1
             )
-            
+        
             fig_cost = px.bar(
                 cost_comparison,
                 x='Cost Type',
@@ -369,45 +376,42 @@ if active_tab == 'DataFlow':
                 text='Display Text',
                 labels={'Amount': 'Cost (USD)', 'Cost Type': ''}
             )
+        
             fig_cost.update_layout(
                 showlegend=False,
                 height=400,
                 yaxis_title="Cost (USD)",
                 title=f"Total Savings: {savings_percentage:.2f}% (${total_savings:,.2f})"
             )
+        
             fig_cost.update_traces(textposition='outside', textfont_size=10)
             st.plotly_chart(fig_cost, use_container_width=True)
         
-        with col_chart2:
-            st.markdown("### Savings Distribution")
-            fig_savings_dist = px.histogram(
-                filtered_df,
-                x='savings',
-                nbins=30,
-                labels={'savings': 'Savings (USD)', 'count': 'Number of Jobs'},
-                color_discrete_sequence=['#1f77b4']
-            )
-            fig_savings_dist.update_layout(height=400)
-            st.plotly_chart(fig_savings_dist, use_container_width=True)
-        
+        # ===============================
         # Row 2: Regional Analysis
+        # ===============================
         col_chart3, col_chart4 = st.columns(2)
         
         with col_chart3:
             st.markdown("### Savings by Region")
+        
             region_savings = filtered_df.groupby('region').agg({
                 'savings': 'sum',
                 'current_cost': 'sum',
                 'target_cost': 'sum'
             }).reset_index()
-            region_savings['Savings %'] = (region_savings['savings'] / region_savings['current_cost'] * 100).round(1)
+        
+            region_savings['Savings %'] = (
+                region_savings['savings'] / region_savings['current_cost'] * 100
+            ).round(1)
+        
             region_savings = region_savings.sort_values('savings', ascending=False)
-            
-            # Create text with both amount and percentage
+        
             region_savings['Display Text'] = region_savings.apply(
-                lambda row: f"${row['savings']:,.0f}<br>({row['Savings %']:.1f}%)", axis=1
+                lambda row: f"${row['savings']:,.0f}<br>({row['Savings %']:.1f}%)",
+                axis=1
             )
-            
+        
             fig_region = px.bar(
                 region_savings,
                 x='region',
@@ -417,24 +421,32 @@ if active_tab == 'DataFlow':
                 text='Display Text',
                 labels={'savings': 'Total Savings (USD)', 'region': 'Region'}
             )
+        
             fig_region.update_traces(textposition='outside')
             fig_region.update_layout(height=400, showlegend=False)
             st.plotly_chart(fig_region, use_container_width=True)
-    
+        
         with col_chart4:
             st.markdown("### Cost Breakdown by Region")
+        
             region_costs = filtered_df.groupby('region').agg({
                 'current_cost': 'sum',
                 'target_cost': 'sum'
             }).reset_index()
+        
             region_costs_melted = region_costs.melt(
                 id_vars='region',
                 value_vars=['current_cost', 'target_cost'],
                 var_name='Cost Type',
                 value_name='Cost'
             )
-            region_costs_melted['Cost Type'] = region_costs_melted['Cost Type'].str.replace('_cost', ' Cost').str.title()
-            
+        
+            region_costs_melted['Cost Type'] = (
+                region_costs_melted['Cost Type']
+                .str.replace('_cost', ' Cost')
+                .str.title()
+            )
+        
             fig_region_cost = px.bar(
                 region_costs_melted,
                 x='region',
@@ -447,6 +459,7 @@ if active_tab == 'DataFlow':
                 },
                 labels={'Cost': 'Cost (USD)', 'region': 'Region'}
             )
+        
             fig_region_cost.update_layout(height=400)
             st.plotly_chart(fig_region_cost, use_container_width=True)
         
@@ -582,37 +595,76 @@ if active_tab == 'DataFlow':
             fig_jobs.update_layout(height=500, showlegend=False)
             st.plotly_chart(fig_jobs, use_container_width=True)
         
-        st.markdown("---")
+        # st.markdown("---")
         
-        # Row 5: Savings Percentage and Efficiency
+        # # Row 5: Savings Percentage and Efficiency
+        # st.markdown("### 📊 Savings Efficiency Analysis")
+        
+        # col_chart9, col_chart10 = st.columns(2)
+        
+        # with col_chart9:
+        #     st.markdown("#### Savings Percentage Distribution")
+        #     filtered_df['savings_percentage'] = (filtered_df['savings'] / filtered_df['current_cost'] * 100)
+        #     fig_savings_pct = px.histogram(
+        #         filtered_df,
+        #         x='savings_percentage',
+        #         nbins=30,
+        #         labels={
+        #             'savings_percentage': 'Savings Percentage (%)',
+        #             'count': 'Number of Jobs'
+        #         },
+        #         color_discrete_sequence=['#2ca02c']
+        #     )
+        #     fig_savings_pct.update_layout(height=400)
+        #     st.plotly_chart(fig_savings_pct, use_container_width=True)
+        
+        # with col_chart10:
+        #     st.markdown("#### Current vs Target Hourly Rates")
+        #     rate_comparison = filtered_df[['current_machine_hourly_rate', 'target_machine_hourly_rate']].melt(
+        #         var_name='Rate Type',
+        #         value_name='Hourly Rate'
+        #     )
+        #     rate_comparison['Rate Type'] = rate_comparison['Rate Type'].str.replace('_machine_hourly_rate', '').str.replace('_', ' ').str.title()
+            
+        #     fig_rates = px.box(
+        #         rate_comparison,
+        #         x='Rate Type',
+        #         y='Hourly Rate',
+        #         color='Rate Type',
+        #         color_discrete_map={
+        #             'Current Machine Hourly Rate': '#ff4444',
+        #             'Target Machine Hourly Rate': '#44ff44'
+        #         },
+        #         labels={'Hourly Rate': 'Hourly Rate (USD)'}
+        #     )
+        #     fig_rates.update_layout(height=400, showlegend=False)
+        #     st.plotly_chart(fig_rates, use_container_width=True)
+        
+        # st.markdown("---")
+        st.markdown("---")
+
+        # Row 5: Savings Efficiency
         st.markdown("### 📊 Savings Efficiency Analysis")
         
-        col_chart9, col_chart10 = st.columns(2)
-        
-        with col_chart9:
-            st.markdown("#### Savings Percentage Distribution")
-            filtered_df['savings_percentage'] = (filtered_df['savings'] / filtered_df['current_cost'] * 100)
-            fig_savings_pct = px.histogram(
-                filtered_df,
-                x='savings_percentage',
-                nbins=30,
-                labels={
-                    'savings_percentage': 'Savings Percentage (%)',
-                    'count': 'Number of Jobs'
-                },
-                color_discrete_sequence=['#2ca02c']
-            )
-            fig_savings_pct.update_layout(height=400)
-            st.plotly_chart(fig_savings_pct, use_container_width=True)
+        col_chart10 = st.columns(1)[0]  # single column
         
         with col_chart10:
             st.markdown("#### Current vs Target Hourly Rates")
-            rate_comparison = filtered_df[['current_machine_hourly_rate', 'target_machine_hourly_rate']].melt(
+        
+            rate_comparison = filtered_df[
+                ['current_machine_hourly_rate', 'target_machine_hourly_rate']
+            ].melt(
                 var_name='Rate Type',
                 value_name='Hourly Rate'
             )
-            rate_comparison['Rate Type'] = rate_comparison['Rate Type'].str.replace('_machine_hourly_rate', '').str.replace('_', ' ').str.title()
-            
+        
+            rate_comparison['Rate Type'] = (
+                rate_comparison['Rate Type']
+                .str.replace('_machine_hourly_rate', '')
+                .str.replace('_', ' ')
+                .str.title()
+            )
+        
             fig_rates = px.box(
                 rate_comparison,
                 x='Rate Type',
@@ -624,10 +676,12 @@ if active_tab == 'DataFlow':
                 },
                 labels={'Hourly Rate': 'Hourly Rate (USD)'}
             )
+        
             fig_rates.update_layout(height=400, showlegend=False)
             st.plotly_chart(fig_rates, use_container_width=True)
         
         st.markdown("---")
+
         
         # Summary Table
         st.subheader("📋 Detailed Summary Table")
