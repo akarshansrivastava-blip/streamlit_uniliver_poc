@@ -38,7 +38,8 @@ st.markdown("""
 @st.cache_data
 def load_data():
     try:
-        df = pd.read_csv('dashboard_data/rightsizing_results_dataflow.csv')
+        df = pd.read_csv('dashboard_Data/rightsizing_results_dataflow.csv')
+
         # Convert created_at to datetime if it exists
         if 'created_at' in df.columns:
             df['created_at'] = pd.to_datetime(df['created_at'], errors='coerce')
@@ -51,7 +52,8 @@ def load_data():
 @st.cache_data
 def load_cloudsql_data():
     try:
-        df = pd.read_csv('dashboard_data/rightsizing_results_cloudsql.csv')
+        df = pd.read_csv('dashboard_Data/rightsizing_results_cloudsql.csv')
+
         # Convert created_at to datetime if it exists
         if 'created_at' in df.columns:
             df['created_at'] = pd.to_datetime(df['created_at'], errors='coerce')
@@ -64,13 +66,23 @@ def load_cloudsql_data():
 @st.cache_data
 def load_kubernetes_data():
     try:
-        df = pd.read_csv('dashboard_data/rightsizing_results.csv')
+        df = pd.read_csv('dashboard_Data/rightsizing_results.csv')
         # Convert created_at to datetime if it exists
         if 'created_at' in df.columns:
             df['created_at'] = pd.to_datetime(df['created_at'], errors='coerce')
         return df
     except Exception as e:
         st.error(f"Error loading Kubernetes data: {str(e)}")
+        return None
+
+# Load Overview data
+@st.cache_data
+def load_overview_data():
+    try:
+        df = pd.read_csv('dashboard_Data/overview.csv')
+        return df
+    except Exception as e:
+        st.error(f"Error loading Overview data: {str(e)}")
         return None
 
 # Title
@@ -81,23 +93,29 @@ st.markdown("---")
 df = load_data()
 cloudsql_df = load_cloudsql_data()
 kubernetes_df = load_kubernetes_data()
+overview_df = load_overview_data()
 
 # Use radio button to explicitly control which view is active
 # This is more reliable than detecting from st.tabs() which executes both blocks
 selected_service = st.radio(
     "Select Service",
-    ["📊 DataFlow Cost Optimization", "🗄️ CloudSQL Cost Optimization", "☸️ Kubernetes Cost Optimization"],
+    ["📈 Overview Analysis", "🗄️ CloudSQL Cost Optimization", "📊 DataFlow Cost Optimization", "☸️ Kubernetes Cost Optimization"],
     horizontal=True,
-    key='service_selector'
+    key='service_selector',
+    index=0
 )
 
 # Determine active tab based on radio selection
-if selected_service == '📊 DataFlow Cost Optimization':
-    active_tab = 'DataFlow'
+if selected_service == '📈 Overview Analysis':
+    active_tab = 'Overview'
 elif selected_service == '🗄️ CloudSQL Cost Optimization':
     active_tab = 'CloudSQL'
-else:
+elif selected_service == '📊 DataFlow Cost Optimization':
+    active_tab = 'DataFlow'
+elif selected_service == '☸️ Kubernetes Cost Optimization':
     active_tab = 'Kubernetes'
+else:
+    active_tab = 'Overview'
 
 # Create sidebar filter container (will be populated based on active tab)
 filter_container = st.sidebar.empty()
@@ -115,9 +133,20 @@ selected_region_k8s = 'All'
 selected_project_k8s = 'All'
 selected_current_machine_k8s = 'All'
 selected_target_machine_k8s = 'All'
+selected_service_ov = 'All'
+selected_project_ov = 'All'
 
 # Render filters based on detected active tab (BEFORE tab content runs)
-if active_tab == 'Kubernetes' and kubernetes_df is not None and not kubernetes_df.empty:
+if active_tab == 'Overview' and overview_df is not None and not overview_df.empty:
+    with filter_container.container():
+        st.sidebar.header("🔍 Overview Filters")
+        
+        ov_services = ['All'] + sorted(overview_df['service'].unique().tolist()) if 'service' in overview_df.columns else ['All']
+        ov_projects = ['All'] + sorted(overview_df['project_id'].unique().tolist()) if 'project_id' in overview_df.columns else ['All']
+        
+        selected_service_ov = st.sidebar.selectbox("Select Service", ov_services, key='overview_service')
+        selected_project_ov = st.sidebar.selectbox("Select Project", ov_projects, key='overview_project')
+elif active_tab == 'Kubernetes' and kubernetes_df is not None and not kubernetes_df.empty:
     with filter_container.container():
         st.sidebar.header("🔍 Kubernetes Filters")
         
@@ -200,7 +229,7 @@ if active_tab == 'DataFlow':
         # with summary_col1:
         #     st.markdown(f"""
         #     <div style="background-color: #ffebee; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #f44336;">
-        #         <h4 style="margin: 0; color: #c62828;">Current Spending </h4>
+        #         <h4 style="margin: 0; color: #c62828;">Current Spending (Monthly)</h4>
         #         <h2 style="margin: 0.5rem 0; color: #d32f2f;">${total_current_cost:,.2f}</h2>
         #         <p style="margin: 0; color: #666;">What you're spending now</p>
         #     </div>
@@ -209,7 +238,7 @@ if active_tab == 'DataFlow':
         # with summary_col2:
         #     st.markdown(f"""
         #     <div style="background-color: #e8f5e9; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #4caf50;">
-        #         <h4 style="margin: 0; color: #2e7d32;">Target Cost </h4>
+        #         <h4 style="margin: 0; color: #2e7d32;">Target Cost (Monthly)</h4>
         #         <h2 style="margin: 0.5rem 0; color: #388e3c;">${total_target_cost:,.2f}</h2>
         #         <p style="margin: 0; color: #666;">After optimization</p>
         #     </div>
@@ -218,7 +247,7 @@ if active_tab == 'DataFlow':
         # with summary_col3:
         #     st.markdown(f"""
         #     <div style="background-color: #e3f2fd; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #2196f3;">
-        #         <h4 style="margin: 0; color: #1565c0;">Total Savings </h4>
+        #         <h4 style="margin: 0; color: #1565c0;">Total Savings (Monthly)</h4>
         #         <h2 style="margin: 0.5rem 0; color: #1976d2;">${total_savings:,.2f}</h2>
         #         <p style="margin: 0; color: #666; font-weight: bold;">Savings: {savings_percentage:.2f}%</p>
         #     </div>
@@ -263,21 +292,21 @@ if active_tab == 'DataFlow':
         
         with col1:
             st.metric(
-                label="Total Current Cost ",
+                label="Total Current Cost (Monthly)",
                 value=f"${total_current_cost:,.2f}",
                 delta=f"100% of spending"
             )
         
         with col2:
             st.metric(
-                label="Total Target Cost ",
+                label="Total Target Cost (Monthly)",
                 value=f"${total_target_cost:,.2f}",
                 delta=f"-{cost_reduction_percentage:.2f}% reduction"
             )
         
         with col3:
             st.metric(
-                label="Total Savings ",
+                label="Total Savings (Monthly)",
                 value=f"${total_savings:,.2f}",
                 delta=f"{savings_percentage:.2f}% savings"
             )
@@ -336,82 +365,63 @@ if active_tab == 'DataFlow':
             )
         
         st.markdown("---")
-
+        
         # Charts Section
         st.subheader("📈 Cost Analysis & Visualizations")
         
-        # ===============================
-        # Row 1: Cost Comparison (ONLY ONE CHART)
-        # ===============================
-        col_chart1 = st.columns(1)[0]
+        # Row 1: Cost Comparison Chart
+        st.markdown("### Current vs Target Cost Comparison")
+        cost_comparison = pd.DataFrame({
+            'Cost Type': ['Current Cost', 'Target Cost', 'Savings'],
+            'Amount': [total_current_cost, total_target_cost, total_savings],
+            'Percentage': ['100%', f'{100-cost_reduction_percentage:.1f}%', f'{savings_percentage:.1f}%']
+        })
         
-        with col_chart1:
-            st.markdown("### Current vs Target Cost Comparison")
+        # Create custom text with both amount and percentage
+        cost_comparison['Display Text'] = cost_comparison.apply(
+            lambda row: f"${row['Amount']:,.0f}<br>({row['Percentage']})", axis=1
+        )
         
-            cost_comparison = pd.DataFrame({
-                'Cost Type': ['Current Cost', 'Target Cost', 'Savings'],
-                'Amount': [total_current_cost, total_target_cost, total_savings],
-                'Percentage': [
-                    '100%',
-                    f'{100 - cost_reduction_percentage:.1f}%',
-                    f'{savings_percentage:.1f}%'
-                ]
-            })
+        fig_cost = px.bar(
+            cost_comparison,
+            x='Cost Type',
+            y='Amount',
+            color='Cost Type',
+            color_discrete_map={
+                'Current Cost': '#ff4444',
+                'Target Cost': '#44ff44',
+                'Savings': '#4444ff'
+            },
+            text='Display Text',
+            labels={'Amount': 'Cost (USD)', 'Cost Type': ''}
+        )
+        fig_cost.update_layout(
+            showlegend=False,
+            height=400,
+            yaxis_title="Cost (USD)",
+            title=f"Total Savings: {savings_percentage:.2f}% (${total_savings:,.2f})"
+        )
+        fig_cost.update_traces(textposition='outside', textfont_size=10)
+        st.plotly_chart(fig_cost, use_container_width=True)
         
-            cost_comparison['Display Text'] = cost_comparison.apply(
-                lambda row: f"${row['Amount']:,.0f}<br>({row['Percentage']})",
-                axis=1
-            )
-        
-            fig_cost = px.bar(
-                cost_comparison,
-                x='Cost Type',
-                y='Amount',
-                color='Cost Type',
-                color_discrete_map={
-                    'Current Cost': '#ff4444',
-                    'Target Cost': '#44ff44',
-                    'Savings': '#4444ff'
-                },
-                text='Display Text',
-                labels={'Amount': 'Cost (USD)', 'Cost Type': ''}
-            )
-        
-            fig_cost.update_layout(
-                showlegend=False,
-                height=400,
-                yaxis_title="Cost (USD)",
-                title=f"Total Savings: {savings_percentage:.2f}% (${total_savings:,.2f})"
-            )
-        
-            fig_cost.update_traces(textposition='outside', textfont_size=10)
-            st.plotly_chart(fig_cost, use_container_width=True)
-        
-        # ===============================
         # Row 2: Regional Analysis
-        # ===============================
         col_chart3, col_chart4 = st.columns(2)
         
         with col_chart3:
             st.markdown("### Savings by Region")
-        
             region_savings = filtered_df.groupby('region').agg({
                 'savings': 'sum',
                 'current_cost': 'sum',
                 'target_cost': 'sum'
             }).reset_index()
-        
-            region_savings['Savings %'] = (
-                region_savings['savings'] / region_savings['current_cost'] * 100
-            ).round(1)
-        
+            region_savings['Savings %'] = (region_savings['savings'] / region_savings['current_cost'] * 100).round(1)
             region_savings = region_savings.sort_values('savings', ascending=False)
-        
+            
+            # Create text with both amount and percentage
             region_savings['Display Text'] = region_savings.apply(
-                lambda row: f"${row['savings']:,.0f}<br>({row['Savings %']:.1f}%)",
-                axis=1
+                lambda row: f"${row['savings']:,.0f}<br>({row['Savings %']:.1f}%)", axis=1
             )
-        
+            
             fig_region = px.bar(
                 region_savings,
                 x='region',
@@ -421,32 +431,24 @@ if active_tab == 'DataFlow':
                 text='Display Text',
                 labels={'savings': 'Total Savings (USD)', 'region': 'Region'}
             )
-        
             fig_region.update_traces(textposition='outside')
             fig_region.update_layout(height=400, showlegend=False)
             st.plotly_chart(fig_region, use_container_width=True)
-        
+    
         with col_chart4:
             st.markdown("### Cost Breakdown by Region")
-        
             region_costs = filtered_df.groupby('region').agg({
                 'current_cost': 'sum',
                 'target_cost': 'sum'
             }).reset_index()
-        
             region_costs_melted = region_costs.melt(
                 id_vars='region',
                 value_vars=['current_cost', 'target_cost'],
                 var_name='Cost Type',
                 value_name='Cost'
             )
-        
-            region_costs_melted['Cost Type'] = (
-                region_costs_melted['Cost Type']
-                .str.replace('_cost', ' Cost')
-                .str.title()
-            )
-        
+            region_costs_melted['Cost Type'] = region_costs_melted['Cost Type'].str.replace('_cost', ' Cost').str.title()
+            
             fig_region_cost = px.bar(
                 region_costs_melted,
                 x='region',
@@ -459,7 +461,6 @@ if active_tab == 'DataFlow':
                 },
                 labels={'Cost': 'Cost (USD)', 'region': 'Region'}
             )
-        
             fig_region_cost.update_layout(height=400)
             st.plotly_chart(fig_region_cost, use_container_width=True)
         
@@ -595,93 +596,33 @@ if active_tab == 'DataFlow':
             fig_jobs.update_layout(height=500, showlegend=False)
             st.plotly_chart(fig_jobs, use_container_width=True)
         
-        # st.markdown("---")
-        
-        # # Row 5: Savings Percentage and Efficiency
-        # st.markdown("### 📊 Savings Efficiency Analysis")
-        
-        # col_chart9, col_chart10 = st.columns(2)
-        
-        # with col_chart9:
-        #     st.markdown("#### Savings Percentage Distribution")
-        #     filtered_df['savings_percentage'] = (filtered_df['savings'] / filtered_df['current_cost'] * 100)
-        #     fig_savings_pct = px.histogram(
-        #         filtered_df,
-        #         x='savings_percentage',
-        #         nbins=30,
-        #         labels={
-        #             'savings_percentage': 'Savings Percentage (%)',
-        #             'count': 'Number of Jobs'
-        #         },
-        #         color_discrete_sequence=['#2ca02c']
-        #     )
-        #     fig_savings_pct.update_layout(height=400)
-        #     st.plotly_chart(fig_savings_pct, use_container_width=True)
-        
-        # with col_chart10:
-        #     st.markdown("#### Current vs Target Hourly Rates")
-        #     rate_comparison = filtered_df[['current_machine_hourly_rate', 'target_machine_hourly_rate']].melt(
-        #         var_name='Rate Type',
-        #         value_name='Hourly Rate'
-        #     )
-        #     rate_comparison['Rate Type'] = rate_comparison['Rate Type'].str.replace('_machine_hourly_rate', '').str.replace('_', ' ').str.title()
-            
-        #     fig_rates = px.box(
-        #         rate_comparison,
-        #         x='Rate Type',
-        #         y='Hourly Rate',
-        #         color='Rate Type',
-        #         color_discrete_map={
-        #             'Current Machine Hourly Rate': '#ff4444',
-        #             'Target Machine Hourly Rate': '#44ff44'
-        #         },
-        #         labels={'Hourly Rate': 'Hourly Rate (USD)'}
-        #     )
-        #     fig_rates.update_layout(height=400, showlegend=False)
-        #     st.plotly_chart(fig_rates, use_container_width=True)
-        
-        # st.markdown("---")
         st.markdown("---")
-
-        # Row 5: Savings Efficiency
-        st.markdown("### 📊 Savings Efficiency Analysis")
         
-        col_chart10 = st.columns(1)[0]  # single column
+        # Row 5: Hourly Rates Analysis
+        st.markdown("### 📊 Hourly Rates Analysis")
         
-        with col_chart10:
-            st.markdown("#### Current vs Target Hourly Rates")
+        st.markdown("#### Current vs Target Hourly Rates")
+        rate_comparison = filtered_df[['current_machine_hourly_rate', 'target_machine_hourly_rate']].melt(
+            var_name='Rate Type',
+            value_name='Hourly Rate'
+        )
+        rate_comparison['Rate Type'] = rate_comparison['Rate Type'].str.replace('_machine_hourly_rate', '').str.replace('_', ' ').str.title()
         
-            rate_comparison = filtered_df[
-                ['current_machine_hourly_rate', 'target_machine_hourly_rate']
-            ].melt(
-                var_name='Rate Type',
-                value_name='Hourly Rate'
-            )
-        
-            rate_comparison['Rate Type'] = (
-                rate_comparison['Rate Type']
-                .str.replace('_machine_hourly_rate', '')
-                .str.replace('_', ' ')
-                .str.title()
-            )
-        
-            fig_rates = px.box(
-                rate_comparison,
-                x='Rate Type',
-                y='Hourly Rate',
-                color='Rate Type',
-                color_discrete_map={
-                    'Current Machine Hourly Rate': '#ff4444',
-                    'Target Machine Hourly Rate': '#44ff44'
-                },
-                labels={'Hourly Rate': 'Hourly Rate (USD)'}
-            )
-        
-            fig_rates.update_layout(height=400, showlegend=False)
-            st.plotly_chart(fig_rates, use_container_width=True)
+        fig_rates = px.box(
+            rate_comparison,
+            x='Rate Type',
+            y='Hourly Rate',
+            color='Rate Type',
+            color_discrete_map={
+                'Current Machine Hourly Rate': '#ff4444',
+                'Target Machine Hourly Rate': '#44ff44'
+            },
+            labels={'Hourly Rate': 'Hourly Rate (USD)'}
+        )
+        fig_rates.update_layout(height=400, showlegend=False)
+        st.plotly_chart(fig_rates, use_container_width=True)
         
         st.markdown("---")
-
         
         # Summary Table
         st.subheader("📋 Detailed Summary Table")
@@ -906,21 +847,21 @@ if active_tab == 'CloudSQL':
         
         with col_cs1:
             st.metric(
-                label="Current Cost ",
+                label="Current Cost (Monthly)",
                 value=f"${cloudsql_total_current:,.2f}",
                 delta="100% of spending"
             )
         
         with col_cs2:
             st.metric(
-                label="Target Cost ",
+                label="Target Cost (Monthly)",
                 value=f"${cloudsql_total_target:,.2f}",
                 delta=f"-{cloudsql_cost_reduction_pct:.2f}% reduction"
             )
         
         with col_cs3:
             st.metric(
-                label="Total Savings ",
+                label="Total Savings (Monthly)",
                 value=f"${cloudsql_total_savings:,.2f}",
                 delta=f"{cloudsql_savings_pct:.2f}% savings"
             )
@@ -1269,7 +1210,7 @@ if active_tab == 'CloudSQL':
                 """)
     
     else:
-        st.error("Unable to load CloudSQL data. Please check if rightsizing_results_cloudsql exists and is properly formatted.")
+        st.error("Unable to load CloudSQL data. Please check if Cloud SQL exists and is properly formatted.")
 
 # ==================== KUBERNETES VIEW ====================
 if active_tab == 'Kubernetes':
@@ -1309,21 +1250,21 @@ if active_tab == 'Kubernetes':
         
         with col_k8s1:
             st.metric(
-                label="Current Cost ",
+                label="Current Cost (Monthly)",
                 value=f"${k8s_total_current:,.2f}",
                 delta="100% of spending"
             )
         
         with col_k8s2:
             st.metric(
-                label="Target Cost ",
+                label="Target Cost (Monthly)",
                 value=f"${k8s_total_target:,.2f}",
                 delta=f"-{k8s_cost_reduction_pct:.2f}% reduction"
             )
         
         with col_k8s3:
             st.metric(
-                label="Total Savings ",
+                label="Total Savings (Monthly)",
                 value=f"${k8s_total_savings:,.2f}",
                 delta=f"{k8s_savings_pct:.2f}% savings"
             )
@@ -1760,4 +1701,427 @@ if active_tab == 'Kubernetes':
                 """)
     
     else:
-        st.error("Unable to load Kubernetes data. Please check if rightsizing_results exists and is properly formatted.")
+        st.error("Unable to load Kubernetes data. Please check if Kubernetes data exists and is properly formatted.")
+
+# ==================== OVERVIEW VIEW ====================
+if active_tab == 'Overview':
+    if overview_df is not None and not overview_df.empty:
+        # Get filter values from session state
+        selected_service_ov = st.session_state.get('overview_service', 'All')
+        selected_project_ov = st.session_state.get('overview_project', 'All')
+        
+        # Apply filters
+        filtered_ov_df = overview_df.copy()
+        
+        if selected_service_ov != 'All':
+            filtered_ov_df = filtered_ov_df[filtered_ov_df['service'] == selected_service_ov]
+        if selected_project_ov != 'All':
+            filtered_ov_df = filtered_ov_df[filtered_ov_df['project_id'] == selected_project_ov]
+        
+        # Overall Summary Metrics
+        total_estimated = filtered_ov_df['Estimated'].sum()
+        total_actual = filtered_ov_df['Actual'].sum()
+        total_savings = filtered_ov_df['Savings'].sum()
+        savings_pct = (total_savings / total_actual * 100) if total_actual > 0 else 0
+        cost_reduction_pct = ((total_actual - total_estimated) / total_actual * 100) if total_actual > 0 else 0
+        num_services = filtered_ov_df['service'].nunique()
+        num_projects = filtered_ov_df['project_id'].nunique()
+        num_entries = len(filtered_ov_df)
+        
+        # 1. Overall Summary
+        st.subheader("📊 Overall Summary")
+        
+        col_ov1, col_ov2, col_ov3, col_ov4, col_ov5, col_ov6 = st.columns(6)
+        
+        with col_ov1:
+            st.metric(
+                label="Total Actual Cost",
+                value=f"${total_actual:,.2f}",
+                delta="100% of spending"
+            )
+        
+        with col_ov2:
+            st.metric(
+                label="Total Estimated Cost",
+                value=f"${total_estimated:,.2f}",
+                delta=f"-{cost_reduction_pct:.2f}% reduction"
+            )
+        
+        with col_ov3:
+            st.metric(
+                label="Total Savings",
+                value=f"${total_savings:,.2f}",
+                delta=f"{savings_pct:.2f}% savings"
+            )
+        
+        with col_ov4:
+            st.metric(
+                label="Number of Services",
+                value=num_services
+            )
+        
+        with col_ov5:
+            st.metric(
+                label="Number of Projects",
+                value=num_projects
+            )
+        
+        with col_ov6:
+            st.metric(
+                label="Total Entries",
+                value=num_entries
+            )
+        
+        st.markdown("---")
+        
+        # 2. Service vs Cost Analysis
+        st.subheader("📈 Service vs Cost Analysis")
+        
+        # Aggregate by service
+        service_analysis = filtered_ov_df.groupby('service').agg({
+            'Estimated': 'sum',
+            'Actual': 'sum',
+            'Savings': 'sum',
+            'project_id': 'nunique'
+        }).reset_index()
+        service_analysis.columns = ['Service', 'Estimated', 'Actual', 'Savings', 'Projects']
+        service_analysis['Savings %'] = (service_analysis['Savings'] / service_analysis['Actual'] * 100).round(2)
+        service_analysis = service_analysis.sort_values('Actual', ascending=False)
+        
+        col_chart_ov1, col_chart_ov2 = st.columns(2)
+        
+        with col_chart_ov1:
+            st.markdown("### Service Cost Comparison")
+            service_analysis['Display Text'] = service_analysis.apply(
+                lambda row: f"${row['Actual']:,.0f}<br>Savings: ${row['Savings']:,.0f}", axis=1
+            )
+            
+            fig_service_cost = px.bar(
+                service_analysis,
+                x='Service',
+                y='Actual',
+                color='Savings',
+                color_continuous_scale='Blues',
+                text='Display Text',
+                labels={'Actual': 'Actual Cost (USD)', 'Service': 'Service'},
+                title="Actual Cost by Service",
+                hover_data=['Estimated', 'Savings', 'Projects']
+            )
+            fig_service_cost.update_traces(textposition='outside')
+            fig_service_cost.update_layout(height=500, showlegend=True)
+            st.plotly_chart(fig_service_cost, use_container_width=True)
+        
+        with col_chart_ov2:
+            st.markdown("### Service Savings Analysis")
+            service_analysis['Savings Display'] = service_analysis.apply(
+                lambda row: f"${row['Savings']:,.0f}<br>({row['Savings %']:.1f}%)", axis=1
+            )
+            
+            fig_service_savings = px.bar(
+                service_analysis,
+                x='Service',
+                y='Savings',
+                color='Savings %',
+                color_continuous_scale='Greens',
+                text='Savings Display',
+                labels={'Savings': 'Savings (USD)', 'Service': 'Service'},
+                title="Total Savings by Service",
+                hover_data=['Actual', 'Estimated', 'Projects']
+            )
+            fig_service_savings.update_traces(textposition='outside')
+            fig_service_savings.update_layout(height=500, showlegend=True)
+            st.plotly_chart(fig_service_savings, use_container_width=True)
+        
+        st.markdown("---")
+        
+        # 3. Project vs Cost Analysis
+        st.subheader("🏢 Project vs Cost Analysis")
+        
+        # Aggregate by project
+        project_analysis = filtered_ov_df.groupby('project_id').agg({
+            'Estimated': 'sum',
+            'Actual': 'sum',
+            'Savings': 'sum',
+            'service': lambda x: ', '.join(sorted(x.unique()))
+        }).reset_index()
+        project_analysis.columns = ['Project ID', 'Estimated', 'Actual', 'Savings', 'Services']
+        project_analysis['Savings %'] = (project_analysis['Savings'] / project_analysis['Actual'] * 100).round(2)
+        project_analysis = project_analysis.sort_values('Actual', ascending=False)
+        
+        col_chart_ov3, col_chart_ov4 = st.columns(2)
+        
+        with col_chart_ov3:
+            st.markdown("### Top Projects by Actual Cost")
+            top_projects_cost = project_analysis.head(15).copy()
+            top_projects_cost['Display Text'] = top_projects_cost.apply(
+                lambda row: f"${row['Actual']:,.0f}<br>Savings: ${row['Savings']:,.0f}", axis=1
+            )
+            
+            fig_project_cost = px.bar(
+                top_projects_cost,
+                x='Actual',
+                y='Project ID',
+                orientation='h',
+                color='Savings',
+                color_continuous_scale='Reds',
+                text='Display Text',
+                labels={'Actual': 'Actual Cost (USD)', 'Project ID': 'Project ID'},
+                title="Top 15 Projects by Actual Cost",
+                hover_data=['Estimated', 'Savings', 'Services']
+            )
+            fig_project_cost.update_traces(textposition='outside')
+            fig_project_cost.update_layout(height=600, showlegend=True, yaxis={'categoryorder': 'total ascending'})
+            st.plotly_chart(fig_project_cost, use_container_width=True)
+        
+        with col_chart_ov4:
+            st.markdown("### Top Projects by Savings")
+            top_projects_savings = project_analysis.sort_values('Savings', ascending=False).head(15).copy()
+            top_projects_savings['Savings Display'] = top_projects_savings.apply(
+                lambda row: f"${row['Savings']:,.0f}<br>({row['Savings %']:.1f}%)", axis=1
+            )
+            
+            fig_project_savings = px.bar(
+                top_projects_savings,
+                x='Savings',
+                y='Project ID',
+                orientation='h',
+                color='Savings %',
+                color_continuous_scale='Purples',
+                text='Savings Display',
+                labels={'Savings': 'Savings (USD)', 'Project ID': 'Project ID'},
+                title="Top 15 Projects by Savings",
+                hover_data=['Actual', 'Estimated', 'Services']
+            )
+            fig_project_savings.update_traces(textposition='outside')
+            fig_project_savings.update_layout(height=600, showlegend=True, yaxis={'categoryorder': 'total ascending'})
+            st.plotly_chart(fig_project_savings, use_container_width=True)
+        
+        st.markdown("---")
+        
+        # 4. Service (X-axis) vs Cost & Project (X-axis) vs Cost
+        st.subheader("📊 Service vs Cost & Project vs Cost")
+        
+        col_chart_ov7, col_chart_ov8 = st.columns(2)
+        
+        with col_chart_ov7:
+            st.markdown("### Service (X-axis) - Cost")
+            service_x_cost = service_analysis.sort_values('Actual', ascending=True).copy()
+            service_x_cost['Display Text'] = service_x_cost.apply(
+                lambda row: f"${row['Actual']:,.0f}", axis=1
+            )
+            
+            fig_service_x = px.bar(
+                service_x_cost,
+                x='Service',
+                y='Actual',
+                color='Actual',
+                color_continuous_scale='Blues',
+                text='Display Text',
+                labels={'Actual': 'Cost (USD)', 'Service': 'Service'},
+                title="Cost by Service (Service on X-axis)",
+                hover_data=['Estimated', 'Savings', 'Savings %']
+            )
+            fig_service_x.update_traces(textposition='outside')
+            fig_service_x.update_layout(height=500, showlegend=False, xaxis_tickangle=-45 if len(service_x_cost) > 3 else 0)
+            st.plotly_chart(fig_service_x, use_container_width=True)
+        
+        with col_chart_ov8:
+            st.markdown("### Project (X-axis) - Cost")
+            # Show top projects for readability (can adjust number)
+            project_x_cost = project_analysis.sort_values('Actual', ascending=False).head(20).sort_values('Actual', ascending=True).copy()
+            project_x_cost['Display Text'] = project_x_cost.apply(
+                lambda row: f"${row['Actual']:,.0f}", axis=1
+            )
+            
+            fig_project_x = px.bar(
+                project_x_cost,
+                x='Project ID',
+                y='Actual',
+                color='Actual',
+                color_continuous_scale='Reds',
+                text='Display Text',
+                labels={'Actual': 'Cost (USD)', 'Project ID': 'Project ID'},
+                title="Cost by Project (Top 20 Projects, Project on X-axis)",
+                hover_data=['Estimated', 'Savings', 'Services']
+            )
+            fig_project_x.update_traces(textposition='outside')
+            fig_project_x.update_layout(height=500, showlegend=False, xaxis_tickangle=-90)
+            st.plotly_chart(fig_project_x, use_container_width=True)
+        
+        st.markdown("---")
+        
+        # 5. Service Breakdown by Project
+        st.subheader("🔍 Service Breakdown by Project")
+        
+        # Cost comparison chart - Actual vs Estimated by Service
+        col_chart_ov5, col_chart_ov6 = st.columns(2)
+        
+        with col_chart_ov5:
+            st.markdown("### Actual vs Estimated Cost by Service")
+            service_cost_melted = service_analysis.melt(
+                id_vars='Service',
+                value_vars=['Actual', 'Estimated'],
+                var_name='Cost Type',
+                value_name='Cost'
+            )
+            
+            fig_service_compare = px.bar(
+                service_cost_melted,
+                x='Service',
+                y='Cost',
+                color='Cost Type',
+                barmode='group',
+                color_discrete_map={
+                    'Actual': '#ff4444',
+                    'Estimated': '#44ff44'
+                },
+                labels={'Cost': 'Cost (USD)', 'Service': 'Service'},
+                title="Actual vs Estimated Cost by Service"
+            )
+            fig_service_compare.update_layout(height=500, showlegend=True)
+            st.plotly_chart(fig_service_compare, use_container_width=True)
+        
+        with col_chart_ov6:
+            st.markdown("### Savings Distribution by Service")
+            fig_savings_dist = px.pie(
+                service_analysis,
+                values='Savings',
+                names='Service',
+                title="Savings Distribution by Service",
+                hover_data=['Actual', 'Estimated']
+            )
+            fig_savings_dist.update_traces(textposition='inside', textinfo='percent+label')
+            fig_savings_dist.update_layout(height=500)
+            st.plotly_chart(fig_savings_dist, use_container_width=True)
+        
+        st.markdown("---")
+        
+        # 6. Detailed Summary Tables
+        st.subheader("📋 Detailed Summary Tables")
+        
+        ov_tab1, ov_tab2, ov_tab3 = st.tabs(["By Service", "By Project", "Full Data"])
+        
+        with ov_tab1:
+            st.markdown("#### Service Level Summary")
+            service_summary_display = service_analysis[['Service', 'Projects', 'Actual', 'Estimated', 'Savings', 'Savings %']].copy()
+            service_summary_display = service_summary_display.sort_values('Actual', ascending=False)
+            st.dataframe(
+                service_summary_display.style.format({
+                    'Actual': '${:,.2f}',
+                    'Estimated': '${:,.2f}',
+                    'Savings': '${:,.2f}',
+                    'Savings %': '{:.2f}%'
+                }),
+                use_container_width=True,
+                height=400
+            )
+        
+        with ov_tab2:
+            st.markdown("#### Project Level Summary")
+            project_summary_display = project_analysis[['Project ID', 'Services', 'Actual', 'Estimated', 'Savings', 'Savings %']].copy()
+            project_summary_display = project_summary_display.sort_values('Actual', ascending=False)
+            st.dataframe(
+                project_summary_display.style.format({
+                    'Actual': '${:,.2f}',
+                    'Estimated': '${:,.2f}',
+                    'Savings': '${:,.2f}',
+                    'Savings %': '{:.2f}%'
+                }),
+                use_container_width=True,
+                height=400
+            )
+        
+        with ov_tab3:
+            st.markdown("#### Full Data View")
+            filtered_display = filtered_ov_df[['service', 'project_id', 'Actual', 'Estimated', 'Savings']].copy()
+            filtered_display.columns = ['Service', 'Project ID', 'Actual', 'Estimated', 'Savings']
+            filtered_display['Savings %'] = (filtered_display['Savings'] / filtered_display['Actual'] * 100).round(2)
+            filtered_display = filtered_display.sort_values('Actual', ascending=False)
+            st.dataframe(
+                filtered_display.style.format({
+                    'Actual': '${:,.2f}',
+                    'Estimated': '${:,.2f}',
+                    'Savings': '${:,.2f}',
+                    'Savings %': '{:.2f}%'
+                }),
+                use_container_width=True,
+                height=400
+            )
+        
+        st.markdown("---")
+        
+        # 7. Key Insights
+        st.subheader("💡 Key Insights")
+        insights_ov_col1, insights_ov_col2 = st.columns(2)
+        
+        with insights_ov_col1:
+            annual_savings = total_savings * 12
+            top_service = service_analysis.iloc[0] if len(service_analysis) > 0 else None
+            top_service_text = f"- Highest cost service: **{top_service['Service']}** (${top_service['Actual']:,.2f}, {top_service['Savings %']:.2f}% savings)\n" if top_service is not None else ""
+            
+            st.info(f"""
+            **💵 Overall Cost Impact:**
+            - **Total Current Spending:** ${total_actual:,.2f}/month (100%)
+            - **Total Estimated Cost:** ${total_estimated:,.2f}/month ({100-cost_reduction_pct:.1f}% of current)
+            - **Total Monthly Savings:** ${total_savings:,.2f} ({savings_pct:.2f}% reduction)
+            - **Annual Savings Projection:** ${annual_savings:,.2f}
+            
+            **📊 Coverage:**
+            - Services analyzed: **{num_services}** ({', '.join(sorted(filtered_ov_df['service'].unique()))})
+            - Projects analyzed: **{num_projects}**
+            - Total entries: **{num_entries}**
+            """)
+        
+        with insights_ov_col2:
+            top_project = project_analysis.iloc[0] if len(project_analysis) > 0 else None
+            top_project_text = f"- Highest cost project: **{top_project['Project ID']}** (${top_project['Actual']:,.2f}, {top_project['Savings']:,.2f} savings)\n" if top_project is not None else ""
+            
+            top_savings_service = service_analysis.sort_values('Savings', ascending=False).iloc[0] if len(service_analysis) > 0 else None
+            top_savings_service_text = f"- Top saving service: **{top_savings_service['Service']}** (${top_savings_service['Savings']:,.2f})\n" if top_savings_service is not None else ""
+            
+            avg_savings_per_service = total_savings / num_services if num_services > 0 else 0
+            avg_savings_per_project = total_savings / num_projects if num_projects > 0 else 0
+            
+            st.info(f"""
+            **🎯 Key Highlights:**
+            {top_service_text}{top_project_text}{top_savings_service_text}
+            - **Cost Reduction Potential:** Reduce costs by **{cost_reduction_pct:.2f}%** across all services
+            - Average savings per service: **${avg_savings_per_service:,.2f}**
+            - Average savings per project: **${avg_savings_per_project:,.2f}**
+            """)
+        
+        st.markdown("---")
+        
+        # 8. Additional Analysis: Service-Project Matrix
+        st.subheader("🔬 Service-Project Cost Matrix")
+        
+        # Create a pivot table for service vs project
+        service_project_matrix = filtered_ov_df.pivot_table(
+            index='service',
+            columns='project_id',
+            values='Actual',
+            aggfunc='sum',
+            fill_value=0
+        )
+        
+        # Create heatmap
+        fig_heatmap = px.imshow(
+            service_project_matrix,
+            labels=dict(x="Project ID", y="Service", color="Cost (USD)"),
+            title="Cost Heatmap: Service vs Project",
+            color_continuous_scale='YlOrRd',
+            aspect="auto"
+        )
+        fig_heatmap.update_layout(height=600)
+        st.plotly_chart(fig_heatmap, use_container_width=True)
+        
+        # Display matrix table
+        st.markdown("#### Service-Project Cost Matrix Table")
+        st.dataframe(
+            service_project_matrix.style.format('${:,.2f}'),
+            use_container_width=True,
+            height=400
+        )
+    
+    else:
+        st.error("Unable to load Overview data. Please check if Overview data exists and is properly formatted.")
